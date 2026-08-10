@@ -2,10 +2,18 @@ name: Playwright Tests
 on:
   push:
     branches: [main]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
@@ -17,9 +25,15 @@ jobs:
       run: npx playwright install --with-deps
     - name: Run Playwright tests
       run: npx playwright test
-    - uses: actions/upload-artifact@v4
+    - name: Generate Allure report
       if: ${{ !cancelled() }}
+      run: npx allure generate allure-results --clean -o allure-report
+    - name: Upload Pages artifact
+      if: ${{ !cancelled() }}
+      uses: actions/upload-pages-artifact@v3
       with:
-        name: playwright-report
-        path: playwright-report/
-        retention-days: 30
+        path: allure-report
+    - name: Deploy to GitHub Pages
+      if: ${{ !cancelled() }}
+      id: deployment
+      uses: actions/deploy-pages@v4
